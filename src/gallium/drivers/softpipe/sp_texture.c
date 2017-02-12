@@ -37,6 +37,7 @@
 #include "util/u_math.h"
 #include "util/u_memory.h"
 #include "util/u_transfer.h"
+#include "util/u_surface.h"
 
 #include "sp_context.h"
 #include "sp_flush.h"
@@ -341,6 +342,64 @@ softpipe_surface_destroy(struct pipe_context *pipe,
 }
 
 
+static void
+softpipe_clear_texture(struct pipe_context *pipe,
+                       struct pipe_resource *tex,
+                       unsigned level,
+                       const struct pipe_box *box,
+                       const void *data)
+{
+   struct pipe_surface tmpl = {{0}};
+   struct pipe_surface *sf;
+   const struct util_format_description *desc =
+          util_format_description(tex->format);
+
+   if (level > tex->last_level)
+      return;
+
+   tmpl.format = tex->format;
+   tmpl.u.tex.first_layer = box->z;
+   tmpl.u.tex.last_layer = box->z + box->depth - 1;
+   tmpl.u.tex.level = level;
+   sf = pipe->create_surface(pipe, tex, &tmpl);
+   if (!sf)
+      return;
+
+   if (util_format_is_depth_or_stencil(tex->format)) {
+      unsigned clear = 0;
+      float depth = 0.0f;
+      uint8_t stencil = 0;
+
+      if (util_format_has_depth(desc)) {
+         clear |= PIPE_CLEAR_DEPTH;
+         desc->unpack_z_float(&depth, 0, data, 0, 1, 1);
+      }
+
+      if (util_format_has_stencil(desc)) {
+         clear |= PIPE_CLEAR_STENCIL;
+         desc->unpack_s_8uint(&stencil, 0, data, 0, 1, 1);
+      }
+
+      pipe->clear_depth_stencil(pipe, sf, clear, depth, stencil,
+                                box->x, box->y,
+                                box->width, box->height, false);
+   } else {
+      union pipe_color_union color;
+
+      if (util_format_is_pure_uint(tex->format))
+         desc->unpack_rgba_uint(color.ui, 0, data, 0, 1, 1);
+      else if (util_format_is_pure_sint(tex->format))
+         desc->unpack_rgba_sint(color.i, 0, data, 0, 1, 1);
+      else
+         desc->unpack_rgba_float(color.f, 0, data, 0, 1, 1);
+
+      util_clear_render_target(pipe, sf, &color, box->x, box->y,
+                               box->width, box->height);
+   }
+   pipe_surface_reference(&sf, NULL);
+}
+
+
 /**
  * Geta pipe_transfer object which is used for moving data in/out of
  * a resource object.
@@ -520,6 +579,7 @@ softpipe_init_texture_funcs(struct pipe_context *pipe)
 
    pipe->create_surface = softpipe_create_surface;
    pipe->surface_destroy = softpipe_surface_destroy;
+   pipe->clear_texture = softpipe_clear_texture;
 }
 
 
