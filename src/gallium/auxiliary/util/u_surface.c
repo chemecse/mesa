@@ -439,12 +439,13 @@ util_clear_texture(struct pipe_context *pipe,
                                   dstx, dsty, dstz,
                                   width, height, depth,
                                   &dst_trans);
-   if (!dst_map || !dst_trans->stride)
+   if (!dst_map)
       return;
 
-   util_clear_texture_helper(dst_trans, dst_map, format, color,
-                             width, height, depth);
-
+   if (dst_trans->stride > 0) {
+      util_clear_texture_helper(dst_trans, dst_map, format, color,
+                                width, height, depth);
+   }
    pipe->transfer_unmap(pipe, dst_trans);
 }
 
