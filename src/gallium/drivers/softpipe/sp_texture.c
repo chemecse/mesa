@@ -349,26 +349,17 @@ softpipe_clear_texture(struct pipe_context *pipe,
                        const struct pipe_box *box,
                        const void *data)
 {
-   struct pipe_surface tmpl = {{0}};
-   struct pipe_surface *sf;
    const struct util_format_description *desc =
           util_format_description(tex->format);
 
    if (level > tex->last_level)
       return;
 
-   tmpl.format = tex->format;
-   tmpl.u.tex.first_layer = box->z;
-   tmpl.u.tex.last_layer = box->z + box->depth - 1;
-   tmpl.u.tex.level = level;
-   sf = pipe->create_surface(pipe, tex, &tmpl);
-   if (!sf)
-      return;
-
    if (util_format_is_depth_or_stencil(tex->format)) {
       unsigned clear = 0;
       float depth = 0.0f;
       uint8_t stencil = 0;
+      uint64_t zstencil;
 
       if (util_format_has_depth(desc)) {
          clear |= PIPE_CLEAR_DEPTH;
@@ -380,12 +371,13 @@ softpipe_clear_texture(struct pipe_context *pipe,
          desc->unpack_s_8uint(&stencil, 0, data, 0, 1, 1);
       }
 
-      pipe->clear_depth_stencil(pipe, sf, clear, depth, stencil,
-                                box->x, box->y,
-                                box->width, box->height, false);
+      zstencil = util_pack64_z_stencil(tex->format, depth, stencil);
+
+      util_clear_depth_stencil_texture(pipe, tex, tex->format, clear, zstencil,
+                                       level, box->x, box->y, box->z,
+                                       box->width, box->height, box->depth);
    } else {
       union pipe_color_union color;
-
       if (util_format_is_pure_uint(tex->format))
          desc->unpack_rgba_uint(color.ui, 0, data, 0, 1, 1);
       else if (util_format_is_pure_sint(tex->format))
@@ -393,10 +385,9 @@ softpipe_clear_texture(struct pipe_context *pipe,
       else
          desc->unpack_rgba_float(color.f, 0, data, 0, 1, 1);
 
-      util_clear_render_target(pipe, sf, &color, box->x, box->y,
-                               box->width, box->height);
+      util_clear_texture(pipe, tex, &color, level, box->x, box->y, box->z,
+                         box->width, box->height, box->depth);
    }
-   pipe_surface_reference(&sf, NULL);
 }
 
 
