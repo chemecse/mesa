@@ -342,55 +342,6 @@ softpipe_surface_destroy(struct pipe_context *pipe,
 }
 
 
-static void
-softpipe_clear_texture(struct pipe_context *pipe,
-                       struct pipe_resource *tex,
-                       unsigned level,
-                       const struct pipe_box *box,
-                       const void *data)
-{
-   const struct util_format_description *desc =
-          util_format_description(tex->format);
-
-   if (level > tex->last_level)
-      return;
-
-   if (util_format_is_depth_or_stencil(tex->format)) {
-      unsigned clear = 0;
-      float depth = 0.0f;
-      uint8_t stencil = 0;
-      uint64_t zstencil;
-
-      if (util_format_has_depth(desc)) {
-         clear |= PIPE_CLEAR_DEPTH;
-         desc->unpack_z_float(&depth, 0, data, 0, 1, 1);
-      }
-
-      if (util_format_has_stencil(desc)) {
-         clear |= PIPE_CLEAR_STENCIL;
-         desc->unpack_s_8uint(&stencil, 0, data, 0, 1, 1);
-      }
-
-      zstencil = util_pack64_z_stencil(tex->format, depth, stencil);
-
-      util_clear_depth_stencil_texture(pipe, tex, tex->format, clear, zstencil,
-                                       level, box->x, box->y, box->z,
-                                       box->width, box->height, box->depth);
-   } else {
-      union pipe_color_union color;
-      if (util_format_is_pure_uint(tex->format))
-         desc->unpack_rgba_uint(color.ui, 0, data, 0, 1, 1);
-      else if (util_format_is_pure_sint(tex->format))
-         desc->unpack_rgba_sint(color.i, 0, data, 0, 1, 1);
-      else
-         desc->unpack_rgba_float(color.f, 0, data, 0, 1, 1);
-
-      util_clear_texture(pipe, tex, &color, level, box->x, box->y, box->z,
-                         box->width, box->height, box->depth);
-   }
-}
-
-
 /**
  * Geta pipe_transfer object which is used for moving data in/out of
  * a resource object.
@@ -570,7 +521,7 @@ softpipe_init_texture_funcs(struct pipe_context *pipe)
 
    pipe->create_surface = softpipe_create_surface;
    pipe->surface_destroy = softpipe_surface_destroy;
-   pipe->clear_texture = softpipe_clear_texture;
+   pipe->clear_texture = util_clear_texture;
 }
 
 

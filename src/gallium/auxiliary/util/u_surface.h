@@ -84,11 +84,10 @@ util_resource_copy_region(struct pipe_context *pipe,
 
 extern void
 util_clear_texture(struct pipe_context *pipe,
-                   struct pipe_resource *texture,
-                   const union pipe_color_union *color,
+                   struct pipe_resource *tex,
                    unsigned level,
-                   unsigned dstx, unsigned dsty, unsigned dstz,
-                   unsigned width, unsigned height, unsigned depth);
+                   const struct pipe_box *box,
+                   const void *data);
 
 extern void
 util_clear_render_target(struct pipe_context *pipe,
@@ -96,15 +95,6 @@ util_clear_render_target(struct pipe_context *pipe,
                          const union pipe_color_union *color,
                          unsigned dstx, unsigned dsty,
                          unsigned width, unsigned height);
-
-extern void
-util_clear_depth_stencil_texture(struct pipe_context *pipe,
-                                 struct pipe_resource *texture,
-                                 enum pipe_format format,
-                                 unsigned clear_flags,
-                                 uint64_t zstencil, unsigned level,
-                                 unsigned dstx, unsigned dsty, unsigned dstz,
-                                 unsigned width, unsigned height, unsigned depth);
 
 extern void
 util_clear_depth_stencil(struct pipe_context *pipe,
